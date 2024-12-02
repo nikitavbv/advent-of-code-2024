@@ -3,6 +3,7 @@ use {
     super::parse_input,
 };
 
+#[allow(dead_code)]
 pub fn run() {
     println!("result is: {}", solve(parse_input()));
 }
