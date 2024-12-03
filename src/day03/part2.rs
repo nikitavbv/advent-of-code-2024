@@ -5,6 +5,6 @@ use {
 
 #[allow(dead_code)]
 pub fn run() {
-    let result = solve(download_input(3), false, true);
+    let result = solve(download_input(3), true, true);
     println!("result: {}", result);
 }
