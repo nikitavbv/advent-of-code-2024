@@ -6,5 +6,5 @@ mod day04;
 mod utils;
 
 fn main() {
-    day04::part1::run();
+    day04::part2::run();
 }
