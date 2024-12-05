@@ -1,6 +1,5 @@
 use {
-    std::collections::HashSet,
-    indicatif::ProgressIterator,
+    std::cmp::Ordering,
     super::{PageNumber, Update, Rule, parse_input},
 };
 
@@ -13,7 +12,6 @@ pub fn run() {
 fn solve(rules: Vec<Rule>, updates: Vec<Update>) -> u32 {
     updates
         .into_iter()
-        .progress()
         .filter(|update| !update.satisfies_rules(&rules))
         .map(|update| create_correctly_ordered(&rules, &update.pages))
         .map(|update| update.middle_page_number().0)
@@ -21,38 +19,21 @@ fn solve(rules: Vec<Rule>, updates: Vec<Update>) -> u32 {
 }
 
 pub fn create_correctly_ordered(rules: &[Rule], pages: &[PageNumber]) -> Update {
-    let pages_set = pages.iter().cloned().collect::<HashSet<_>>();
-    let rules_subset = rules
-        .iter()
-        .filter(|rule| pages_set.contains(&rule.page1) && pages_set.contains(&rule.page2))
-        .cloned()
-        .collect::<Vec<_>>();
+    let mut pages = pages.to_vec();
+    pages.sort_by(|a, b| {
+        let rule1 = rules.iter().find(|rule| &rule.page1 == a && &rule.page2 == b);
+        let rule2 = rules.iter().find(|rule| &rule.page1 == b && &rule.page2 == a);
 
-    create_correctly_ordered_with_update(&rules_subset, pages, &Update::empty())
-        .expect("no way to create correctly ordered update")
-}
-
-pub fn create_correctly_ordered_with_update(rules: &[Rule], pages: &[PageNumber], update: &Update) -> Option<Update> {
-    if !update.satisfies_rules(&rules) {
-        return None;
-    }
-    if pages.is_empty() {
-        return Some(update.clone());
-    }
-
-    for i in 0..pages.len() {
-        let page = pages[i].clone();
-        let mut pages_without_page = pages[0..i].to_vec();
-        pages_without_page.append(&mut pages[i+1..].to_vec());
-
-        let updated_update = update.append(page);
-        let result = create_correctly_ordered_with_update(rules, &pages_without_page, &updated_update);
-        if let Some(result) = result {
-            return Some(result);
+        if rule1.is_some() {
+            Ordering::Less
+        } else if rule2.is_some() {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
         }
-    }
+    });
 
-    None
+    Update::new(pages.to_vec())
 }
 
 #[cfg(test)]
