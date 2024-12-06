@@ -58,6 +58,13 @@ impl Direction {
             Self::Left => Self::Top,
         }
     }
+
+    pub fn is_vertical(&self) -> bool {
+        match self {
+            Self::Top | Self::Bottom => true,
+            Self::Left | Self::Right => false,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -124,20 +131,10 @@ impl World {
                 };
             }
         };
-        let guard_direction: Direction = match object_at_next_position {
-            Object::Empty => guard_direction.clone(), // continue moving in same direction
-            Object::Obstacle => guard_direction.turn_right(), // turn right because there is an obstacle in front of guard
-        };
-        let guard_position = match guard_position.move_in_direction(&guard_direction) {
-            Some(v) => v,
-            None => {
-                // guard just exited the map
-                return Self {
-                    map: self.map,
-                    guard_position: None,
-                    guard_direction: None,
-                };
-            }
+
+        let (guard_position, guard_direction) = match object_at_next_position {
+            Object::Empty => (next_position, guard_direction.clone()), // continue moving in same direction
+            Object::Obstacle => (guard_position.clone(), guard_direction.turn_right()), // turn right because there is an obstacle in front of guard
         };
 
         Self {
@@ -145,6 +142,15 @@ impl World {
             guard_position: Some(guard_position),
             guard_direction: Some(guard_direction),
         }
+    }
+
+    pub fn encode_to_string(&self) -> String {
+        self.map.iter()
+            .map(|row| row.iter().map(|obj| match obj {
+                Object::Empty => '.',
+                Object::Obstacle => '#',
+            }).collect::<String>())
+            .collect::<Vec<_>>().join("\n")
     }
 }
 
@@ -167,7 +173,7 @@ pub fn calculate_visited_positions(mut world: World) -> VisitedPositions {
         visited_positions.insert(world.guard_position.clone().unwrap());
         if !visited_positions_with_directions.insert((
             world.guard_position.clone().unwrap(),
-            world.guard_direction.clone().unwrap()
+            world.guard_direction.clone().unwrap(),
         )) {
             return VisitedPositions {
                 visited_positions,
