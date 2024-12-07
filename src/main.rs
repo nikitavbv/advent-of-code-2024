@@ -9,5 +9,5 @@ mod day07;
 mod utils;
 
 fn main() {
-    day07::part1::run();
+    day07::part2::run();
 }
