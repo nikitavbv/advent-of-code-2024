@@ -5,5 +5,5 @@ use {
 
 #[allow(dead_code)]
 pub fn run() {
-    println!("result: {}", solve(&parse_map(&download_input(8)), false));
+    println!("result: {}", solve(&parse_map(&download_input(8)), true));
 }
