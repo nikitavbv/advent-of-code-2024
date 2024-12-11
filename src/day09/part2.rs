@@ -10,7 +10,7 @@ pub fn run() {
 
 fn solve(disk_map: &str) -> u64 {
     let mut disk_map = parse_disk_map(disk_map);
-    disk_map.defragment();
+    disk_map.defragment_contiguous_files();
     disk_map.checksum()
 }
 
@@ -20,6 +20,6 @@ mod tests {
 
     #[test]
     fn test_example() {
-        assert_eq!(solve("2333133121414131402"), 1928);
+        assert_eq!(solve("2333133121414131402"), 2858);
     }
 }
