@@ -124,6 +124,67 @@ impl DiskMap {
         groups.push(current_group.clone());
 
         // now, run defragmentation
+        let mut max_file_id: Option<u32> = None;
+        loop {
+            let (file_to_move_index, file_to_move) = match groups.iter()
+                .enumerate()
+                .filter(|(_index, group)| !group.block.is_free())
+                .filter(|(_index, file_group)| max_file_id.is_none() || file_group.block.file_id().unwrap() < max_file_id.unwrap())
+                .last() {
+                    Some(v) => (v.0, v.1.clone()),
+                    None => break,
+                };
+
+            let (target_group_index, target_group) = match groups.iter()
+                .enumerate()
+                .filter(|(_group_index, group)| group.block.is_free() && group.size >= file_to_move.size && group.position < file_to_move.position)
+                .next() {
+                    Some(v) => (v.0, v.1.clone()),
+                    None => {
+                        max_file_id = Some(file_to_move.block.file_id().unwrap());
+                        continue;
+                    }
+            };
+
+            let updated_group = BlocksGroup {
+                position: target_group.position + file_to_move.size,
+                size: target_group.size - file_to_move.size,
+                block: target_group.block.clone(),
+            };
+            groups[file_to_move_index] = BlocksGroup {
+                position: file_to_move.position,
+                size: file_to_move.size,
+                block: Block::Free,
+            };
+            if updated_group.size > 0 {
+                // downsize and insert
+                groups[target_group_index] = updated_group;
+                groups.insert(target_group_index, BlocksGroup {
+                    position: target_group.position,
+                    size: file_to_move.size,
+                    block: file_to_move.block.clone(),
+                });
+            } else {
+                // replace
+                groups[target_group_index] = BlocksGroup {
+                    position: target_group.position,
+                    size: file_to_move.size,
+                    block: file_to_move.block.clone(),
+                };
+            }
+            max_file_id = Some(file_to_move.block.file_id().unwrap());
+        }
+
+        // finally, update layout according to defragmented index
+        let mut disk_map = Vec::with_capacity(self.blocks.len());
+
+        for group in groups {
+            for _ in 0..group.size {
+                disk_map.push(group.block.clone());
+            }
+        }
+
+        self.blocks = disk_map;
     }
 
     pub fn checksum(&self) -> u64 {
