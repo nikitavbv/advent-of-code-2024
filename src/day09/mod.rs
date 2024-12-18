@@ -1,7 +1,7 @@
 pub mod part1;
 pub mod part2;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Block {
     Free,
     File {
@@ -14,6 +14,13 @@ impl Block {
         match self {
             Self::Free => true,
             _ => false,
+        }
+    }
+
+    pub fn file_id(&self) -> Option<u32> {
+        match self {
+            Self::Free => None,
+            Self::File { id } => Some(*id),
         }
     }
 }
@@ -61,21 +68,62 @@ impl DiskMap {
 
     pub fn defragment_contiguous_files(&mut self) {
         // first, build an index
-        struct FreeBlocks {
+        #[derive(Debug, Clone)]
+        struct BlocksGroup {
             position: u32,
             size: u32,
+            block: Block,
         }
 
-        // TODO: continue this
-        // let mut free_blocks = Vec::new();
-        let mut current_free_blocks: Option<FreeBlocks> = None;
+        let mut groups = Vec::new();
+        let mut current_group = BlocksGroup {
+            position: 0,
+            size: 0,
+            block: Block::File { id: 0 },
+        };
         for i in 0..self.blocks.len() {
-            if self.blocks[i].is_free() {
-                if let Some(current_blocks) = current_free_blocks.as_mut() {
-                    current_blocks.size += 1;
+            current_group = if self.blocks[i].is_free() {
+                if current_group.block.is_free() {
+                    BlocksGroup {
+                        position: current_group.position,
+                        size: current_group.size + 1,
+                        block: current_group.block,
+                    }
+                } else {
+                    groups.push(current_group.clone());
+                    BlocksGroup {
+                        position: i as u32,
+                        size: 1,
+                        block: Block::Free,
+                    }
+                }
+            } else {
+                if current_group.block.is_free() {
+                    groups.push(current_group.clone());
+                    BlocksGroup {
+                        position: i as u32,
+                        size: 1,
+                        block: Block::File { id: self.blocks[i].file_id().unwrap() },
+                    }
+                } else if current_group.block.file_id().unwrap() == self.blocks[i].file_id().unwrap() {
+                    BlocksGroup {
+                        position: current_group.position,
+                        size: current_group.size + 1,
+                        block: current_group.block,
+                    }
+                } else {
+                    groups.push(current_group.clone());
+                    BlocksGroup {
+                        position: i as u32,
+                        size: 1,
+                        block: Block::File { id: self.blocks[i].file_id().unwrap() },
+                    }
                 }
             }
         }
+        groups.push(current_group.clone());
+
+        // now, run defragmentation
     }
 
     pub fn checksum(&self) -> u64 {
