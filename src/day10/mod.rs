@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 const MAX_HEIGHT: u8 = 9;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-struct Position {
+pub struct Position {
     x: u32,
     y: u32,
 }
@@ -50,6 +50,7 @@ pub struct Map {
     // top left is (0, 0).
     map: Vec<Vec<u8>>,
     reachable_heights: HashMap<Position, HashSet<Position>>,
+    trails: HashMap<Position, HashSet<Vec<Position>>>,
 }
 
 impl Map {
@@ -57,6 +58,7 @@ impl Map {
         Self {
             map: Vec::new(),
             reachable_heights: HashMap::new(),
+            trails: HashMap::new(),
         }
     }
 
@@ -64,6 +66,7 @@ impl Map {
         Self {
             map,
             reachable_heights: HashMap::new(),
+            trails: HashMap::new(),
         }
     }
 
@@ -117,6 +120,55 @@ impl Map {
 
         result
     }
+
+    pub fn total_trails_from_position(&mut self, position: &Position, skip_positions: HashSet<Position>) -> HashSet<Vec<Position>> {
+        if skip_positions.contains(position) {
+            return HashSet::new(); // if already visited position, return empty set.
+        }
+
+        let self_height = match self.at(position) {
+            Some(v) => v,
+            None => return HashSet::new(), // if invalid position, return empty set
+        };
+
+        // if this position is top, return itself
+        if self_height == MAX_HEIGHT {
+            let mut self_set = HashSet::new();
+            self_set.insert(vec![position.clone()]);
+            return self_set;
+        }
+
+        // if have trails memoized, return them
+        if let Some(trails) = self.trails.get(position) {
+            return trails.clone();
+        }
+
+        // else, let's compute based on neighbours
+        let mut visited = skip_positions.clone();
+        visited.insert(position.clone());
+
+        let mut result = HashSet::new();
+
+        for other in position.neighbours() {
+            let other_height = match self.at(&other) {
+                Some(v) => v,
+                None => continue,
+            };
+
+            if other_height != self_height + 1 {
+                continue;
+            }
+
+            for mut trail in self.total_trails_from_position(&other, visited.clone()) {
+                trail.insert(0, position.clone());
+                result.insert(trail);
+            }
+        }
+
+        self.trails.insert(position.clone(), result.clone());
+
+        result
+    }
 }
 
 fn parse_map(input: &str) -> Map {
@@ -127,29 +179,57 @@ fn parse_map(input: &str) -> Map {
         .collect())
 }
 
-fn solve(input: &str) -> u32 {
-    let mut map = parse_map(input);
-    let mut total = 0;
-    for y in 0..map.map.len() {
-        for x in 0..map.map[y].len() {
-            let position = Position::new(x as u32, y as u32);
-            if map.at(&position).unwrap() == 0 {
-                total += map.reachable_heights_from_position(&position, HashSet::new()).len() as u32;
-            }
-        }
-    }
-
-    total
-}
-
 pub mod part1 {
     use {
         crate::utils::download_input,
         super::*,
     };
 
+    #[allow(dead_code)]
     pub fn run() {
         println!("result: {}", solve(&download_input(10)));
+    }
+
+    pub fn solve(input: &str) -> u32 {
+        let mut map = parse_map(input);
+        let mut total = 0;
+        for y in 0..map.map.len() {
+            for x in 0..map.map[y].len() {
+                let position = Position::new(x as u32, y as u32);
+                if map.at(&position).unwrap() == 0 {
+                    total += map.reachable_heights_from_position(&position, HashSet::new()).len() as u32;
+                }
+            }
+        }
+
+        total
+    }
+}
+
+pub mod part2 {
+    use {
+        crate::utils::download_input,
+        super::*,
+    };
+
+    #[allow(dead_code)]
+    pub fn run() {
+        println!("result: {}", solve(&download_input(10)));
+    }
+
+    pub fn solve(input: &str) -> u32 {
+        let mut map = parse_map(input);
+        let mut total = 0;
+        for y in 0..map.map.len() {
+            for x in 0..map.map[y].len() {
+                let position = Position::new(x as u32, y as u32);
+                if map.at(&position).unwrap() == 0 {
+                    total += map.total_trails_from_position(&position, HashSet::new()).len() as u32;
+                }
+            }
+        }
+
+        total
     }
 }
 
@@ -160,7 +240,7 @@ mod tests {
     #[test]
     fn test_example_part1() {
         assert_eq!(
-            solve(r#"89010123
+            part1::solve(r#"89010123
 78121874
 87430965
 96549874
@@ -169,6 +249,21 @@ mod tests {
 01329801
 10456732"#),
             36
+        );
+    }
+
+    #[test]
+    fn test_example_part2() {
+        assert_eq!(
+            part2::solve(r#"89010123
+78121874
+87430965
+96549874
+45678903
+32019012
+01329801
+10456732"#),
+            81
         );
     }
 }
