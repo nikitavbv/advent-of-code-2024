@@ -18,10 +18,6 @@ impl Stone {
             number,
         }
     }
-
-    fn is_even_number_of_digits(&self) -> bool {
-        self.number.to_string().len() % 2 == 0
-    }
 }
 
 impl Stones {
@@ -37,12 +33,14 @@ impl Stones {
         for stone in &self.stones {
             if stone.number == BigUint::ZERO {
                 result.push(Stone::new(BigUint::from_u32(1).unwrap()));
-            } else if stone.is_even_number_of_digits() {
-                let str = stone.number.to_string();
-                result.push(Stone::new(str[0..str.len() / 2].parse().unwrap()));
-                result.push(Stone::new(str[str.len()/2..].parse().unwrap()));
             } else {
-                result.push(Stone::new(stone.number.checked_mul(&BigUint::from_u32(2024).unwrap()).unwrap()));
+                let digits = stone.number.to_radix_le(10);
+                if digits.len() % 2 == 0 {
+                    result.push(Stone::new(BigUint::from_radix_le(&digits[0..digits.len()/2], 10).unwrap()));
+                    result.push(Stone::new(BigUint::from_radix_le(&digits[digits.len()/2..], 10).unwrap()));
+                } else {
+                    result.push(Stone::new(stone.number.checked_mul(&BigUint::from_u32(2024).unwrap()).unwrap()));
+                }
             }
         }
 
@@ -59,23 +57,38 @@ fn parse_stones(input: &str) -> Stones {
     )
 }
 
+fn solve(input: &str, blinks: u32) -> u32 {
+    (0..blinks)
+        .into_iter()
+        .fold(parse_stones(input), |stones, i| {
+            println!("{}", i);
+            stones.next()
+        })
+        .stones
+        .len() as u32
+}
+
 pub mod part1 {
     use {
         crate::utils::download_input,
-        super::parse_stones,
+        super::solve,
     };
 
     #[allow(dead_code)]
     pub fn run() {
-        println!("result: {}", solve(&download_input(11)));
+        println!("result: {}", solve(&download_input(11), 25));
     }
+}
 
-    pub fn solve(input: &str) -> u32 {
-        (0..25)
-            .into_iter()
-            .fold(parse_stones(input), |stones, _| stones.next())
-            .stones
-            .len() as u32
+pub mod part2 {
+    use {
+        crate::utils::download_input,
+        super::solve,
+    };
+
+    #[allow(dead_code)]
+    pub fn run() {
+        println!("result: {}", solve(&download_input(11), 75));
     }
 }
 
@@ -88,7 +101,7 @@ mod tests {
     #[test]
     fn test_example() {
         assert_eq!(
-            part1::solve("125 17"),
+            solve("125 17", 25),
             55312
         );
     }
@@ -96,7 +109,7 @@ mod tests {
     #[test]
     fn test_result_part1() {
         assert!(
-            part1::solve(&download_input(11)) > 166011
+            solve(&download_input(11), 25) > 166011
         )
     }
 }
