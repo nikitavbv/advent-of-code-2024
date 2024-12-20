@@ -1,15 +1,17 @@
 use {
+    std::collections::HashMap,
     num_bigint::BigUint,
     num_traits::{ops::checked::CheckedMul, FromPrimitive},
 };
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone)]
 struct Stone {
     number: BigUint,
 }
 
 struct Stones {
     stones: Vec<Stone>,
+    stones_after_blinks: HashMap<(BigUint, u32), u64>,
 }
 
 impl Stone {
@@ -24,27 +26,48 @@ impl Stones {
     pub fn new(stones: Vec<Stone>) -> Self {
         Self {
             stones,
+            stones_after_blinks: HashMap::new(),
         }
     }
 
-    fn next(&self) -> Self {
-        let mut result = Vec::new();
+    fn stones_after_blinks(&mut self, blinks: u32) -> u64 {
+        let mut result = 0;
+        for stone in &self.stones.clone() {
+            result += self.stones_after_blinks_for_stone(stone, blinks);
+        }
+        result
+    }
 
-        for stone in &self.stones {
-            if stone.number == BigUint::ZERO {
-                result.push(Stone::new(BigUint::from_u32(1).unwrap()));
-            } else {
-                let digits = stone.number.to_radix_le(10);
-                if digits.len() % 2 == 0 {
-                    result.push(Stone::new(BigUint::from_radix_le(&digits[0..digits.len()/2], 10).unwrap()));
-                    result.push(Stone::new(BigUint::from_radix_le(&digits[digits.len()/2..], 10).unwrap()));
-                } else {
-                    result.push(Stone::new(stone.number.checked_mul(&BigUint::from_u32(2024).unwrap()).unwrap()));
-                }
-            }
+    fn stones_after_blinks_for_stone(&mut self, stone: &Stone, blinks: u32) -> u64 {
+        if blinks == 0 {
+            return 1; // if no more blinks, then we are left with just this one stone
         }
 
-        Self::new(result)
+        // if there is a memoized result, return it.
+        if let Some(stones) = self.stones_after_blinks.get(&(stone.number.clone(), blinks)) {
+            return *stones;
+        }
+
+        let result = if stone.number == BigUint::ZERO {
+            self.stones_after_blinks_for_stone(&Stone::new(BigUint::from_u32(1).unwrap()), blinks - 1)
+        } else {
+            let digits = stone.number.to_radix_be(10);
+            if digits.len() % 2 == 0 {
+                self.stones_after_blinks_for_stone(
+                    &Stone::new(BigUint::from_radix_be(&digits[0..digits.len() / 2], 10).unwrap()),
+                    blinks - 1
+                ).checked_add(self.stones_after_blinks_for_stone(
+                    &Stone::new(BigUint::from_radix_be(&digits[digits.len()/2..], 10).unwrap()),
+                    blinks - 1
+                )).unwrap()
+            } else {
+                self.stones_after_blinks_for_stone(&Stone::new(stone.number.checked_mul(&BigUint::from_u32(2024).unwrap()).unwrap()), blinks - 1)
+            }
+        };
+
+        self.stones_after_blinks.insert((stone.number.clone(), blinks), result);
+
+        result
     }
 }
 
@@ -57,15 +80,8 @@ fn parse_stones(input: &str) -> Stones {
     )
 }
 
-fn solve(input: &str, blinks: u32) -> u32 {
-    (0..blinks)
-        .into_iter()
-        .fold(parse_stones(input), |stones, i| {
-            println!("{}", i);
-            stones.next()
-        })
-        .stones
-        .len() as u32
+fn solve(input: &str, blinks: u32) -> u64 {
+    parse_stones(input).stones_after_blinks(blinks)
 }
 
 pub mod part1 {
