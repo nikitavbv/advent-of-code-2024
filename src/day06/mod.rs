@@ -59,6 +59,7 @@ impl Direction {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_vertical(&self) -> bool {
         match self {
             Self::Top | Self::Bottom => true,

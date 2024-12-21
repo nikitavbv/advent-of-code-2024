@@ -27,7 +27,7 @@ impl Position {
 }
 
 #[derive(Debug)]
-struct Map {
+pub struct Map {
     antennas: HashTrieMapSync<char, HashTrieSetSync<Position>>,
     rows: u32,
     columns: u32,
@@ -42,7 +42,7 @@ impl Map {
         }
     }
 
-    pub fn add_antenna(self, frequency: char, position: Position) -> Self {
+    fn add_antenna(self, frequency: char, position: Position) -> Self {
         let antennas = self.antennas.insert(
             frequency,
             self.antennas.get(&frequency).cloned().unwrap_or(HashTrieSetSync::new_sync())

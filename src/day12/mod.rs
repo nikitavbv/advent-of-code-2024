@@ -116,21 +116,21 @@ impl World {
             .for_each(|position| self.explore_region(plant_type, &position, region_positions, explored_positions));
     }
 
-    fn total_cost(&self) -> u32 {
-        self.regions().into_iter().map(|v| v.cost()).sum()
+    fn total_cost(&self, use_sides: bool) -> u32 {
+        self.regions().into_iter().map(|v| v.cost(use_sides)).sum()
     }
 }
 
 #[derive(Debug)]
 struct Region {
-    plot: Plot,
+    _plot: Plot,
     positions: Vec<Position>,
 }
 
 impl Region {
     fn new(plot: Plot, positions: Vec<Position>) -> Self {
         Self {
-            plot,
+            _plot: plot,
             positions,
         }
     }
@@ -155,8 +155,16 @@ impl Region {
         total_perimiter
     }
 
-    fn cost(&self) -> u32 {
-        self.area().checked_mul(self.perimeter()).unwrap()
+    fn sides(&self) -> u32 {
+        unimplemented!()
+    }
+
+    fn cost(&self, use_sides: bool) -> u32 {
+        self.area().checked_mul(if use_sides {
+            self.sides()
+        } else {
+            self.perimeter()
+        }).unwrap()
     }
 }
 
@@ -175,7 +183,7 @@ pub mod part1 {
 
     #[allow(dead_code)]
     pub fn run() {
-        println!("result: {}", parse_world(&download_input(12)).total_cost());
+        println!("result: {}", parse_world(&download_input(12)).total_cost(false));
     }
 }
 
@@ -189,7 +197,7 @@ mod tests {
 BBCD
 BBCC
 EEEC");
-        assert_eq!(world.total_cost(), 140);
+        assert_eq!(world.total_cost(false), 140);
     }
 
     #[test]
@@ -204,6 +212,6 @@ VVIIICJJEE
 MIIIIIJJEE
 MIIISIJEEE
 MMMISSJEEE");
-        assert_eq!(world.total_cost(), 1930);
+        assert_eq!(world.total_cost(false), 1930);
     }
 }
