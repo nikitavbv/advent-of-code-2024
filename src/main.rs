@@ -14,5 +14,5 @@ mod day12;
 mod utils;
 
 fn main() {
-    day12::part1::run();
+    day12::part2::run();
 }

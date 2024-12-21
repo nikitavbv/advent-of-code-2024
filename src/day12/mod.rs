@@ -22,6 +22,32 @@ impl Position {
             Position::new(self.x, self.y + 1),
         ]
     }
+
+    fn neighbor_with_direction(&self, direction: &Direction) -> Position {
+        match direction {
+            Direction::Top => Position::new(self.x, self.y - 1),
+            Direction::Right => Position::new(self.x + 1, self.y),
+            Direction::Bottom => Position::new(self.x, self.y + 1),
+            Direction::Left => Position::new(self.x - 1, self.y),
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Hash)]
+enum Direction {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+
+impl Direction {
+    fn perpendicular(&self) -> Vec<Self> {
+        match &self {
+            Self::Top | Self::Bottom => vec![Self::Right, Self::Left],
+            Self::Left | Self::Right => vec![Self::Top, Self::Bottom],
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -156,7 +182,47 @@ impl Region {
     }
 
     fn sides(&self) -> u32 {
-        unimplemented!()
+        let positions_set = self.positions.iter().cloned().collect::<HashSet<Position>>();
+        let directions = [
+            Direction::Top,
+            Direction::Right,
+            Direction::Bottom,
+            Direction::Left,
+        ];
+
+        let mut edges = Vec::new();
+
+        for position in &self.positions {
+            directions.iter()
+                .filter(|direction| !positions_set.contains(&position.neighbor_with_direction(direction)))
+                .for_each(|direction| edges.push((position.clone(), direction.clone())));
+        }
+
+        let edges_set = edges.iter().cloned().collect::<HashSet<_>>();
+        let mut visited_edges: HashSet<(Position, Direction)> = HashSet::new();
+
+        let mut sides = 0;
+        for edge in edges {
+            if visited_edges.contains(&edge) {
+                continue;
+            }
+
+            for direction in edge.1.perpendicular() {
+                let mut position = edge.0.clone();
+                loop {
+                    position = position.neighbor_with_direction(&direction);
+                    let new_edge = (position.clone(), edge.1.clone());
+                    if !edges_set.contains(&new_edge) {
+                        break;
+                    }
+                    visited_edges.insert(new_edge);
+                }
+            }
+
+            sides += 1;
+        }
+
+        sides
     }
 
     fn cost(&self, use_sides: bool) -> u32 {
@@ -187,6 +253,18 @@ pub mod part1 {
     }
 }
 
+pub mod part2 {
+    use {
+        crate::utils::download_input,
+        super::*,
+    };
+
+    #[allow(dead_code)]
+    pub fn run() {
+        println!("result: {}", parse_world(&download_input(12)).total_cost(true));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -213,5 +291,35 @@ MIIIIIJJEE
 MIIISIJEEE
 MMMISSJEEE");
         assert_eq!(world.total_cost(false), 1930);
+    }
+
+    #[test]
+    fn simple_example_with_sides() {
+        let world = parse_world("AAAA
+BBCD
+BBCC
+EEEC");
+        assert_eq!(world.total_cost(true), 80);
+    }
+
+    #[test]
+    fn example_with_sides_2() {
+        let world = parse_world("EEEEE
+EXXXX
+EEEEE
+EXXXX
+EEEEE");
+        assert_eq!(world.total_cost(true), 236);
+    }
+
+    #[test]
+    fn example_with_sides_3() {
+        let world = parse_world("AAAAAA
+AAABBA
+AAABBA
+ABBAAA
+ABBAAA
+AAAAAA");
+        assert_eq!(world.total_cost(true), 368);
     }
 }
